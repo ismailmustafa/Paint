@@ -23,10 +23,10 @@ type Pixel    = (P2, Color, Bool)
 type Canvas m = UM.MVector m Pixel
 
 width :: Width
-width = 100
+width = 200
 
 height :: Height
-height = 100
+height = 200
 
 generatePixels :: Width -> Height -> [Pixel]
 generatePixels w h = [((j,i),(255,255,255),False) | i <- [0..h-1], j <- [0..w-1]]
@@ -41,12 +41,20 @@ generateCanvas :: PrimMonad m => Width -> Height -> m (Canvas (PrimState m))
 generateCanvas w h = do
     let seed = (quot w 2, quot h 2)
         seedColor = (207,0,15)
-        canvasPoints = [(j,i) | i <- [0..h-1], j <- [0..w-1]]
     mV <- UV.thaw $ UV.fromList $ generatePixels w h -- create canvas
     _  <- drawPixel mV seedColor seed -- draw center pixel (seed)
-    _  <- drawPixel mV (38,166,91) ((quot w 2) + 1, quot h 2)
-    _  <- drawBorderPixels mV seed
+    _  <- draw mV
     return mV
+
+draw :: PrimMonad m => Canvas (PrimState m) -> m (Canvas (PrimState m))
+draw canvas = do
+    points <- borderPoints canvas canvasPoints
+    sequence_ $ drawBorderPixels canvas <$> points
+    if (length points < (width*height)) then do draw canvas else return canvas
+        where canvasPoints = [(j,i) | i <- [0..height-1], j <- [0..width-1]]
+
+borderPoints :: PrimMonad m => Canvas (PrimState m) -> [P2] -> m [P2]
+borderPoints canvas points = do touchedPoints canvas points
 
 drawBorderPixels :: PrimMonad m => Canvas (PrimState m) -> P2 -> m (Canvas (PrimState m))
 drawBorderPixels canvas point = do
@@ -78,6 +86,16 @@ validPoint (x,y)
     | x < 0 || x >= width  = False
     | y < 0 || y >= height = False
     | otherwise            = True
+
+touchedPoints :: PrimMonad m => Canvas (PrimState m) -> [P2] -> m [P2]
+touchedPoints canvas points = do
+    validPoints <- filterM (touchedPoint canvas) points
+    return validPoints
+
+touchedPoint :: PrimMonad m => Canvas (PrimState m) -> P2 -> m Bool
+touchedPoint canvas point = do
+    (_,_,touched) <- UM.read canvas (index point)
+    if touched then return True else return False
 
 untouchedPoints :: PrimMonad m => Canvas (PrimState m) -> [P2] -> m [P2]
 untouchedPoints canvas points = do
