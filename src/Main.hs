@@ -4,7 +4,7 @@ module Main where
 import Codec.Picture( PixelRGBA8( .. ), writePng )
 import Graphics.Rasterific
 import Graphics.Rasterific.Texture
---import qualified Data.Vector                 as V
+import qualified Data.Vector                 as V
 import qualified Data.Vector.Unboxed         as UV
 import qualified Data.Vector.Unboxed.Mutable as UM
 --import Control.Monad.ST
@@ -21,12 +21,13 @@ type Color = (Word8, Word8, Word8)
 type P2 = (XPos, YPos)
 type Pixel    = (P2, Color, Bool)
 type Canvas m = UM.MVector m Pixel
+type Points = V.Vector P2
 
 width :: Width
-width = 200
+width = 300
 
 height :: Height
-height = 200
+height = 300
 
 generatePixels :: Width -> Height -> [Pixel]
 generatePixels w h = [((j,i),(255,255,255),False) | i <- [0..h-1], j <- [0..w-1]]
@@ -41,19 +42,19 @@ generateCanvas :: PrimMonad m => Width -> Height -> m (Canvas (PrimState m))
 generateCanvas w h = do
     let seed = (quot w 2, quot h 2)
         seedColor = (207,0,15)
+        canvasPoints = V.fromList [(j,i) | i <- [0..height-1], j <- [0..width-1]]
     mV <- UV.thaw $ UV.fromList $ generatePixels w h -- create canvas
     _  <- drawPixel mV seedColor seed -- draw center pixel (seed)
-    _  <- draw mV
+    _  <- draw mV canvasPoints
     return mV
 
-draw :: PrimMonad m => Canvas (PrimState m) -> m (Canvas (PrimState m))
-draw canvas = do
+draw :: PrimMonad m => Canvas (PrimState m) -> Points -> m (Canvas (PrimState m))
+draw canvas canvasPoints = do
     points <- borderPoints canvas canvasPoints
-    sequence_ $ drawBorderPixels canvas <$> points
-    if (length points < (width*height)) then do draw canvas else return canvas
-        where canvasPoints = [(j,i) | i <- [0..height-1], j <- [0..width-1]]
+    V.sequence_ $ V.map (drawBorderPixels canvas) points
+    if (V.length points < (width*height)) then do (draw canvas canvasPoints) else return canvas
 
-borderPoints :: PrimMonad m => Canvas (PrimState m) -> [P2] -> m [P2]
+borderPoints :: PrimMonad m => Canvas (PrimState m) -> Points -> m Points
 borderPoints canvas points = do touchedPoints canvas points
 
 drawBorderPixels :: PrimMonad m => Canvas (PrimState m) -> P2 -> m (Canvas (PrimState m))
@@ -87,9 +88,9 @@ validPoint (x,y)
     | y < 0 || y >= height = False
     | otherwise            = True
 
-touchedPoints :: PrimMonad m => Canvas (PrimState m) -> [P2] -> m [P2]
+touchedPoints :: PrimMonad m => Canvas (PrimState m) -> Points -> m Points
 touchedPoints canvas points = do
-    validPoints <- filterM (touchedPoint canvas) points
+    validPoints <- V.filterM (touchedPoint canvas) points
     return validPoints
 
 touchedPoint :: PrimMonad m => Canvas (PrimState m) -> P2 -> m Bool
