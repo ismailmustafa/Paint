@@ -22,3 +22,4 @@ executable paint
                      , random
                      , vector
                      , primitive
+                     , colour
