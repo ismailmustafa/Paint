@@ -11,7 +11,6 @@ import Control.Monad.Primitive
 import Control.Monad (filterM)
 import Data.Word (Word8)
 import System.Random
-import Data.Colour
 
 type Width = Int
 type Height = Int
@@ -173,9 +172,6 @@ index (x,y) = width * y + x
     
 main :: IO ()
 main = do
-    let rgb = RGB (255,255,255)
-        hue = hsvView rgb
-    print hue
     gen <- getStdGen
     mutableCanvas <- generateCanvas width height gen
     frozenCanvas <- UV.freeze mutableCanvas

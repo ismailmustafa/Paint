@@ -14,3 +14,4 @@ cabal.sandbox.config
 *.hp
 .stack-work/
 .DS_Store
+image.png
